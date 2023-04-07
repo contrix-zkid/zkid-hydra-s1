@@ -49,7 +49,6 @@ $ yarn build
 ## Test
 
 ```sh
-$ yarn test 
-$ test:circuits
-$ test:verifier-contract
+$ yarn test:circuits
+$ yarn test:verifier-contract
 ```
