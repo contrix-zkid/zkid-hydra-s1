@@ -43,9 +43,9 @@ describe("Hydra S1 Verifier contract", () => {
 
     merkleTreeData = {
       [BigNumber.from(accounts[0].identifier).toHexString()]: 1,
-      [BigNumber.from(accounts[1].identifier).toHexString()]: 2,
-      [BigNumber.from(accounts[2].identifier).toHexString()]: 3,
-      [BigNumber.from(accounts[3].identifier).toHexString()]: 4
+      [BigNumber.from(accounts[1].identifier).toHexString()]: 1,
+      [BigNumber.from(accounts[2].identifier).toHexString()]: 1,
+      [BigNumber.from(accounts[3].identifier).toHexString()]: 1
     };
     accountsTree = new KVMerkleTree(merkleTreeData, poseidon, ACCOUNTS_TREE_HEIGHT);
 
@@ -66,6 +66,7 @@ describe("Hydra S1 Verifier contract", () => {
   })
 
   it("Should be able to generate the proof using the prover package", async () => {
+
     const prover = new HydraS1Prover(
       registryTree,
       await commitmentMapperTester.getPubKey()
@@ -84,17 +85,21 @@ describe("Hydra S1 Verifier contract", () => {
       externalNullifier,
       isStrict: Boolean(registryTree.getValue(accountsTree.getRoot().toHexString()).toNumber())
     });
-  })
 
+  }),
+
+    
   it("Should be able to verify the proof using the verifier", async () => {
-    const isValidContract = await hydraS1VerifierContract.verifyProof(proof.a, proof.b, proof.c, proof.input);
+    const isValidContract = await hydraS1VerifierContract.verifyProof(proof.a, proof.b, proof.c, 
+      [proof.input[0],proof.input[1],proof.input[2],proof.input[3],proof.input[4]]);
     expect(isValidContract).to.equals(true);
   });
 
   it("Should change a public input and expect the verifier to revert", async () => {
-    const invalidInput = proof.input;
-    invalidInput[3] = BigNumber.from(123) // override signal corresponding to registryTreeRoot 
-    const isValidContract = await hydraS1VerifierContract.verifyProof(proof.a, proof.b, proof.c, invalidInput);
+    let invalidInput = proof.input;
+    invalidInput[1] = BigNumber.from(20001) // override signal corresponding to registryTreeRoot 
+    const isValidContract = await hydraS1VerifierContract.verifyProof(proof.a, proof.b, proof.c, 
+      [invalidInput[0],invalidInput[1],invalidInput[2],invalidInput[3],invalidInput[4]]);
     expect(isValidContract).to.equals(false);
   });
 });

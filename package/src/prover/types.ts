@@ -2,26 +2,16 @@ export type PrivateInputs = {
   sourceIdentifier: BigInt;
   sourceSecret: BigInt;
   sourceCommitmentReceipt: BigInt[];
-  destinationSecret: BigInt;
-  destinationCommitmentReceipt: BigInt[];
   accountMerklePathElements: BigInt[];
   accountMerklePathIndices: number[];
   accountsTreeRoot: BigInt;
-  registryMerklePathElements: BigInt[];
-  registryMerklePathIndices: number[];
-  sourceValue: BigInt;
 };
 
 export type PublicInputs = {
-  isStrict: 1 | 0;
+  destinationIdentifier: BigInt;
   commitmentMapperPubKey: BigInt[];
-  registryTreeRoot: BigInt;
   externalNullifier: BigInt;
   nullifier: BigInt;
-  destinationIdentifier: BigInt;
-  chainId: BigInt;
-  accountsTreeValue: BigInt;
-  claimedValue: BigInt;
 };
 
 export type Inputs = {

@@ -53,7 +53,6 @@ export class HydraS1Prover {
     chainId,
     accountsTree,
     externalNullifier,
-    isStrict,
   }: UserParams): Promise<Inputs> {
     source.identifier = BigNumber.from(source.identifier);
     source.secret = BigNumber.from(source.secret);
@@ -86,14 +85,10 @@ export class HydraS1Prover {
     const sourceSecretHash = poseidon([source.secret, 1]);
     const nullifier = poseidon([sourceSecretHash, externalNullifier]);
 
-    const privateInputs: PrivateInputs = {
+    const oldPrivateInputs: PrivateInputs = {
       sourceIdentifier: source.identifier.toBigInt(),
       sourceSecret: source.secret.toBigInt(),
       sourceCommitmentReceipt: source.commitmentReceipt.map((el) =>
-        BigNumber.from(el).toBigInt()
-      ),
-      destinationSecret: destination.secret.toBigInt(),
-      destinationCommitmentReceipt: destination.commitmentReceipt.map((el) =>
         BigNumber.from(el).toBigInt()
       ),
       accountsTreeRoot: accountsTree.getRoot().toBigInt(),
@@ -101,26 +96,32 @@ export class HydraS1Prover {
         el.toBigInt()
       ),
       accountMerklePathIndices: accountMerklePath.indices,
-      registryMerklePathElements: registryMerklePath.elements.map((el) =>
-        el.toBigInt()
-      ),
-      registryMerklePathIndices: registryMerklePath.indices,
-      sourceValue: sourceValue.toBigInt(),
     };
 
-    const publicInputs: PublicInputs = {
+    const oldPublicInputs: PublicInputs = {
       destinationIdentifier: destination.identifier.toBigInt(),
-      chainId: chainId.toBigInt(),
       commitmentMapperPubKey: this.commitmentMapperPubKey.map((el) =>
         el.toBigInt()
       ),
-      registryTreeRoot: this.registryTree.getRoot().toBigInt(),
       externalNullifier: externalNullifier.toBigInt(),
       nullifier: nullifier.toBigInt(),
-      claimedValue: claimedValue.toBigInt(),
-      accountsTreeValue: accountsTreeValue.toBigInt(),
-      isStrict: isStrict ? 1 : 0,
     };
+
+    const selectedPrivKeys = ["sourceIdentifier", "sourceSecret", "sourceCommitmentReceipt", "accountMerklePathElements", "accountMerklePathIndices", "accountsTreeRoot"];
+    const privateInputs: PrivateInputs = selectedPrivKeys.reduce((obj, key) => {
+      if (oldPrivateInputs.hasOwnProperty(key)) {
+        obj[key] = oldPrivateInputs[key];
+      }
+      return obj;
+    }, {} as PrivateInputs);
+
+    const selectedPubKeys = ["destinationIdentifier", "commitmentMapperPubKey", "externalNullifier", "nullifier"];
+    const publicInputs: PublicInputs = selectedPubKeys.reduce((obj, key) => {
+      if (oldPublicInputs.hasOwnProperty(key)) {
+        obj[key] = oldPublicInputs[key];
+      }
+      return obj;
+    }, {} as PublicInputs);
 
     return {
       privateInputs,
@@ -244,7 +245,7 @@ export class HydraS1Prover {
     }
   }
 
-  public async generateSnarkProof({
+  public async generateSnarkProofOld({
     source,
     destination,
     claimedValue,
@@ -262,6 +263,45 @@ export class HydraS1Prover {
       externalNullifier,
       isStrict,
     });
+
+    const { privateInputs, publicInputs } = await this.generateInputs({
+      source,
+      destination,
+      claimedValue,
+      chainId,
+      accountsTree,
+      externalNullifier,
+      isStrict,
+    });
+
+    let files;
+    if (process.env.MODULE_FORMAT == "esm" && this.esmOverrideCircuitPath) {
+      files = this.esmOverrideCircuitPath;
+    } else {
+      files = {
+        zkeyPath,
+        wasmPath,
+      };
+    }
+
+    const { proof, publicSignals } = await groth16.fullProve(
+      { ...privateInputs, ...publicInputs },
+      files.wasmPath,
+      files.zkeyPath
+    );
+
+    return new SnarkProof(publicSignals, proof);
+  }
+
+  public async generateSnarkProof({
+    source,
+    destination,
+    claimedValue,
+    chainId,
+    accountsTree,
+    externalNullifier,
+    isStrict,
+  }: UserParams): Promise<SnarkProof> {
 
     const { privateInputs, publicInputs } = await this.generateInputs({
       source,

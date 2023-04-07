@@ -10,33 +10,23 @@ include "../node_modules/circomlib/circuits/babyjub.circom";
 include "./common/verify-merkle-path.circom";
 include "./common/verify-hydra-commitment.circom";
 
-// This is the circuit for the Hydra S1 Proving Scheme
+// This is the circuit for the Zkid Proving Scheme
 // please read this doc to understand the underlying concepts
-// https://hydra-s1.docs.sismo.io
+// we refer to code of sismo: https://hydra-s1.docs.sismo.io
 template hydraS1(registryTreeHeight, accountsTreeHeight) {
   // Private inputs
   signal input sourceIdentifier;
-  signal input sourceSecret;
+  signal input sourceSecret; 
   signal input sourceCommitmentReceipt[3];
-  signal input destinationSecret; 
-  signal input destinationCommitmentReceipt[3];
   signal input accountMerklePathElements[accountsTreeHeight];
   signal input accountMerklePathIndices[accountsTreeHeight];
-  signal input accountsTreeRoot;
-  signal input registryMerklePathElements[registryTreeHeight];
-  signal input registryMerklePathIndices[registryTreeHeight];
-  signal input sourceValue;
+  signal input accountsTreeRoot; // credential: bayc holders group -> merkle root
 
   // Public inputs
-  signal input destinationIdentifier;
-  signal input chainId;
+  signal input destinationIdentifier; // contract_address + tokenId (if new -> -1)
   signal input commitmentMapperPubKey[2];
-  signal input registryTreeRoot;
-  signal input externalNullifier;
+  signal input externalNullifier; //
   signal input nullifier;
-  signal input claimedValue;
-  signal input accountsTreeValue;
-  signal input isStrict;
 
   // Verify the source account went through the Hydra Delegated Proof of Ownership
   // That means the user own the source address
@@ -49,23 +39,11 @@ template hydraS1(registryTreeHeight, accountsTreeHeight) {
   sourceCommitmentVerification.commitmentReceipt[1] <== sourceCommitmentReceipt[1];
   sourceCommitmentVerification.commitmentReceipt[2] <== sourceCommitmentReceipt[2];
 
-  // Verify the destination account went through the Hydra Delegated Proof of Ownership
-  // That means the user own the destination address
-  component destinationCommitmentVerification = VerifyHydraCommitment();
-  destinationCommitmentVerification.address <== destinationIdentifier;
-  destinationCommitmentVerification.secret <== destinationSecret; 
-  destinationCommitmentVerification.commitmentMapperPubKey[0] <== commitmentMapperPubKey[0];
-  destinationCommitmentVerification.commitmentMapperPubKey[1] <== commitmentMapperPubKey[1];
-  destinationCommitmentVerification.commitmentReceipt[0] <== destinationCommitmentReceipt[0];
-  destinationCommitmentVerification.commitmentReceipt[1] <== destinationCommitmentReceipt[1];
-  destinationCommitmentVerification.commitmentReceipt[2] <== destinationCommitmentReceipt[2];
-
-
   // Verification that the source account is part of an accounts tree
   // Recreating the leaf which is the hash of an account identifier and an account value
   component accountLeafConstructor = Poseidon(2);
   accountLeafConstructor.inputs[0] <== sourceIdentifier;
-  accountLeafConstructor.inputs[1] <== sourceValue;
+  accountLeafConstructor.inputs[1] <== 1; // source value default 1
 
   // This tree is an Accounts Merkle Tree which is constituted by accounts
   // https://accounts-registry-tree.docs.sismo.io
@@ -78,38 +56,6 @@ template hydraS1(registryTreeHeight, accountsTreeHeight) {
     accountsTreesPathVerifier.pathElements[i] <== accountMerklePathElements[i];
     accountsTreesPathVerifier.pathIndices[i] <== accountMerklePathIndices[i];
   }
-
-  // Verification that the accounts tree is part of a registry tree
-  // Recreating the leaf
-  component registryLeafConstructor = Poseidon(2);
-  registryLeafConstructor.inputs[0] <== accountsTreeRoot;
-  registryLeafConstructor.inputs[1] <== accountsTreeValue; 
-
-  // https://accounts-registry-tree.docs.sismo.io
-  // leaf = Hash(accountsTreeRoot, accountsTreeValue)
-  // verify the merkle path
-  component registryTreePathVerifier = VerifyMerklePath(registryTreeHeight);
-  registryTreePathVerifier.leaf <== registryLeafConstructor.out; 
-  registryTreePathVerifier.root <== registryTreeRoot;
-  for (var i = 0; i < registryTreeHeight; i++) {
-    registryTreePathVerifier.pathElements[i] <== registryMerklePathElements[i];
-    registryTreePathVerifier.pathIndices[i] <== registryMerklePathIndices[i];
-  }
-
-  // Verify claimed value validity
-  // Prevent overflow of comparator range
-  component sourceInRange = Num2Bits(252);
-  sourceInRange.in <== sourceValue;
-  component claimedInRange = Num2Bits(252);
-  claimedInRange.in <== claimedValue;
-  // 0 <= claimedValue <= sourceValue
-  component leq = LessEqThan(252);
-  leq.in[0] <== claimedValue;
-  leq.in[1] <== sourceValue;
-  leq.out === 1;
-  // If isStrict == 1 then claimedValue == sourceValue
-  0 === (isStrict-1)*isStrict;
-  sourceValue === sourceValue+((claimedValue-sourceValue)*isStrict);
 
   // Verify the nullifier is valid
   // compute the sourceSecretHash using the hash of the sourceSecret
@@ -124,12 +70,11 @@ template hydraS1(registryTreeHeight, accountsTreeHeight) {
   // and verifying the result is equals
   component nullifierHasher = Poseidon(2);
   nullifierHasher.inputs[0] <== sourceSecretHash;
-  nullifierHasher.inputs[1] <== externalNullifier;
+  nullifierHasher.inputs[1] <== externalNullifier; // can be credentialId
   nullifierHasher.out === nullifier;
 
-  // Square serve to avoid removing by the compilator optimizer
-  signal chainIdSquare;
-  chainIdSquare <== chainId * chainId;
+  signal destinationIdentifierSquared;
+  destinationIdentifierSquared <== destinationIdentifier * destinationIdentifier;
 }
 
-component main {public [commitmentMapperPubKey, registryTreeRoot, externalNullifier, nullifier, destinationIdentifier, claimedValue, chainId, accountsTreeValue, isStrict]} = hydraS1(20,20);
+component main {public [commitmentMapperPubKey, externalNullifier, nullifier, destinationIdentifier]} = hydraS1(20,20);
