@@ -1,6 +1,6 @@
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "./@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "./IHydraS1Verifier.sol";
 
 contract ZkID is ERC721 {
@@ -35,7 +35,7 @@ contract ZkID is ERC721 {
         address mintTo = address(getMintTo(input[0]));
         uint256 tokenId = getTokenId(input[0]);
 
-        if (tokenId == 2 ** 96 - 1) {
+        if (tokenId == 2 ** 80 - 1) {
             // uint256 tokenId = nfts.length;
             _safeMint(mintTo, supply);
             tokenId = supply;
@@ -60,13 +60,13 @@ contract ZkID is ERC721 {
 
     function getMintTo(uint256 number) public pure returns (bytes20) {
         // Shift the uint256 value to the right by 96 bits to get the last 20 bytes
-        bytes20 converted = bytes20(uint160(number >> 96));
+        bytes20 converted = bytes20(uint160(number >> 80));
         return converted;
     }
 
     function getTokenId(uint256 value) public pure returns (uint256) {
         // Define a mask with the desired bits set to 1
-        uint256 mask = uint256(2 ** 96 - 1);
+        uint256 mask = uint256(2 ** 80 - 1);
 
         // Perform a bitwise AND with the mask to get the last 12 bytes
         uint256 result = value & mask;
