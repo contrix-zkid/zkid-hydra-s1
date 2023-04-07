@@ -20,7 +20,7 @@ contract ZkID is ERC721 {
         address owner;
         uint256[] cids; 
     }
-    
+
     // Create a new NFT
     function createCredential(
         uint[2] memory a,
@@ -29,6 +29,7 @@ contract ZkID is ERC721 {
         uint[5] memory input
     ) external {
         // check proof
+        require(!isNullifierExpired[input[4]], "Invalid Nullifier");
         require(hydraS1Verifier.verifyProof(a, b, c, input), "Invalid Proof");
         // mint new token if tokenId 
         address mintTo = address(getMintTo(input[0]));
@@ -47,6 +48,8 @@ contract ZkID is ERC721 {
             require(tokenId < supply, "Invalid TokenId");
             tokenInfo[tokenId].cids.push(input[2]);
         }
+
+        isNullifierExpired[input[4]] = true;
     }
 
     // Get the metadata of an NFT
