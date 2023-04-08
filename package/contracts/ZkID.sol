@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 import "./@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "./IHydraS1Verifier.sol";
 
-contract ZkID is ERC721 {
+contract ZKID is ERC721 {
     constructor(address hydraS1Verifier_) ERC721("ZkID", "ZKID") {
         hydraS1Verifier = IHydraS1Verifier(hydraS1Verifier_);
     }
@@ -18,7 +18,7 @@ contract ZkID is ERC721 {
     struct NFTMetadata {
         uint256 tokenId;
         address owner;
-        uint256[] cids; 
+        uint256[] cids;
     }
 
     // Create a new NFT
@@ -31,7 +31,7 @@ contract ZkID is ERC721 {
         // check proof
         require(!isNullifierExpired[input[4]], "Invalid Nullifier");
         require(hydraS1Verifier.verifyProof(a, b, c, input), "Invalid Proof");
-        // mint new token if tokenId 
+        // mint new token if tokenId
         address mintTo = address(getMintTo(input[0]));
         uint256 tokenId = getTokenId(input[0]);
 
@@ -43,7 +43,7 @@ contract ZkID is ERC721 {
             tokenInfo[supply].owner = mintTo;
             tokenInfo[supply].cids.push(input[2]);
 
-            supply += 1; 
+            supply += 1;
         } else {
             require(tokenId < supply, "Invalid TokenId");
             tokenInfo[tokenId].cids.push(input[2]);
@@ -59,7 +59,7 @@ contract ZkID is ERC721 {
     }
 
     function getMintTo(uint256 number) public pure returns (bytes20) {
-        // Shift the uint256 value to the right by 96 bits to get the last 20 bytes
+        // Shift the uint256 value to the right by 80 bits to get the last 20 bytes
         bytes20 converted = bytes20(uint160(number >> 80));
         return converted;
     }
@@ -72,5 +72,12 @@ contract ZkID is ERC721 {
         uint256 result = value & mask;
 
         return result;
+    }
+
+    function getTokenIdByAddress(address owner) public view returns (uint256) {
+        for (uint256 i = 0; i < supply; ++i)
+            if (tokenInfo[i].owner == owner) return i;
+
+        return uint256(2 ** 80 - 1);
     }
 }
