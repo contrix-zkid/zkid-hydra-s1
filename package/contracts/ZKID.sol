@@ -1,12 +1,22 @@
 pragma solidity ^0.8.9;
 
-import "./@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "./IHydraS1Verifier.sol";
 import "./EditionMetadataRenderer.sol";
 
 contract ZKID is ERC721, EditionMetadataRenderer {
-  constructor(address hydraS1Verifier_) ERC721("ZKID", "ZKID") {
+
+  constructor(address hydraS1Verifier_,
+    string memory _name,
+    string memory _symbol,
+    string memory _description,
+    string memory _imageUrl,
+    string memory _externalUrl) ERC721(_name, _symbol) {
     hydraS1Verifier = IHydraS1Verifier(hydraS1Verifier_);
+
+    description = _description;
+    imageUrl = _imageUrl;
+    externalUrl = _externalUrl;
   }
 
   uint256 supply;
@@ -37,23 +47,24 @@ contract ZKID is ERC721, EditionMetadataRenderer {
     address mintTo = address(getMintTo(input[0]));
     uint256 tokenId = getTokenId(input[0]);
 
-    if (tokenId == 2 ** 80 - 1) {
-      // uint256 tokenId = nfts.length;
-      _safeMint(mintTo, supply);
-      tokenId = supply;
-      tokenInfo[supply].tokenId = supply;
-      tokenInfo[supply].owner = mintTo;
-      tokenInfo[supply].cids.push(input[2]);
+    if (tokenId == 2 ** 80 - 1) { // 没有mint，但要二次确认
+      tokenId = getTokenIdByAddress(mintTo);
+      if (tokenId != 2 ** 80 - 1)
+        tokenInfo[tokenId].cids.push(input[3]);
+      else {
+        // uint256 tokenId = nfts.length;
+        _safeMint(mintTo, supply);
+        tokenId = supply;
+        tokenInfo[supply].tokenId = tokenId;
+        tokenInfo[supply].owner = mintTo;
+        tokenInfo[supply].cids.push(input[3]);
 
-      supply += 1;
+        supply += 1;
+      }
     } else {
       require(tokenId < supply, "Invalid TokenId");
-      tokenInfo[tokenId].cids.push(input[2]);
+      tokenInfo[tokenId].cids.push(input[3]);
     }
-
-    uint256 len = tokenInfo[tokenId].cids.length;
-    addProperties(tokenId,
-      string.concat("Credential #", LibString.toString(len)), input[2]);
 
     isNullifierExpired[input[4]] = true;
   }
@@ -95,4 +106,44 @@ contract ZKID is ERC721, EditionMetadataRenderer {
 
     return createTokenMetadata(name(), tokenId, 0);
   }
+
+  function calcPropertiesJson(uint256 tokenId) internal view override returns (string memory) {
+    uint256 len = tokenInfo[tokenId].cids.length;
+    uint256 lengthMinusOne = len - 1;
+
+    string memory buffer = '';
+
+    for (uint256 i = 0; i < lengthMinusOne; ) {
+      buffer = string.concat(
+        buffer,
+        stringifyStringAttribute(
+          "Credential",
+          LibString.toString(tokenInfo[tokenId].cids[i])),
+        ","
+      );
+
+      // counter increment can not overflow
+      ++i;
+    }
+
+    return string.concat(
+      buffer,
+      stringifyStringAttribute(
+        "Credential",
+        LibString.toString(tokenInfo[tokenId].cids[lengthMinusOne]))
+    );
+  }
+
+  //   function _transfer(
+  //     address from,
+  //     address to,
+  //     uint256 tokenId
+  //   ) internal override {
+  //     require(false, "SBT: SBT Can't Be Transferred");
+  //   }
+  //   function addProperty(uint256 tokenId, string memory name, string memory value) private {
+  //     properties[tokenId].push(Attribute({
+  //       name: name, value: value
+  //     }));
+  //   }
 }

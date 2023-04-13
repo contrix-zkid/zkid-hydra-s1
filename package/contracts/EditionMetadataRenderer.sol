@@ -2,10 +2,8 @@
 
 pragma solidity ^0.8.6;
 
-//import {Base64} from "./utils/Base64.sol";
-//import {LibString} from "./utils/LibString.sol";
-//
-//import {EditionMetadataState, Attribute} from "./EditionMetadataState.sol";
+import {Base64} from "./utils/Base64.sol";
+import {LibString} from "./utils/LibString.sol";
 import "./EditionMetadataState.sol";
 
 /// logic for rendering metadata associated with editions
@@ -23,7 +21,7 @@ contract EditionMetadataRenderer is EditionMetadataState {
   ) internal view returns (string memory) {
 
     string memory editionSizeText = editionSize > 0 ?
-      string.concat("/", LibString.toString(editionSize)) : "";
+    string.concat("/", LibString.toString(editionSize)) : "";
 
     string memory nameText = string.concat(
       '"name":"', LibString.escapeJSON(name), " #",
@@ -33,10 +31,10 @@ contract EditionMetadataRenderer is EditionMetadataState {
       '"description":"', LibString.escapeJSON(description), '",');
 
     string memory externalURLText = bytes(externalUrl).length > 0 ?
-      string.concat('"external_url":"', externalUrl, '",') : "";
+    string.concat('"external_url":"', externalUrl, '",') : "";
 
     string memory imageUrlText = bytes(imageUrl).length > 0 ?
-      string.concat('"image":"', imageUrl, '",') : "";
+    string.concat('"image":"', imageUrl, '",') : "";
 
     return toBase64DataUrl(string.concat('{',
       nameText,
@@ -70,10 +68,10 @@ contract EditionMetadataRenderer is EditionMetadataState {
       '"fee_recipient":"', LibString.toHexString(royaltyRecipient), '",');
 
     string memory externalURLText = bytes(externalUrl).length > 0 ?
-      string.concat('"external_link":"', externalUrl, '",') : "";
+    string.concat('"external_link":"', externalUrl, '",') : "";
 
     string memory imageUrlText = bytes(imageUrl).length > 0 ?
-      string.concat('"image":"', imageUrl, '",') : "";
+    string.concat('"image":"', imageUrl, '",') : "";
 
     return toBase64DataUrl(string.concat('{',
       nameText,
@@ -102,12 +100,16 @@ contract EditionMetadataRenderer is EditionMetadataState {
   /// Produces Enjin Metadata style simple properties
   /// @dev https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1155.md#erc-1155-metadata-uri-json-schema
   function getPropertiesJson(uint256 tokenId) internal view returns (string memory) {
-    Attribute[] attrs = properties[tokenId];
+    return string.concat('"properties":{', calcPropertiesJson(tokenId), "}");
+  }
+
+  function calcPropertiesJson(uint256 tokenId) virtual internal view returns (string memory) {
+    Attribute[] memory attrs = properties[tokenId];
 
     uint256 length = attrs.length;
-    if (length == 0) return ',"properties":{}';
+    if (length == 0) return '';
 
-    string memory buffer = ',"properties":{';
+    string memory buffer = '';
 
   unchecked {
     // `length - 1` can not underflow because of the `length == 0` check above
@@ -125,19 +127,15 @@ contract EditionMetadataRenderer is EditionMetadataState {
     }
 
     // add the last attribute without a trailing comma
-    Attribute lastAttr = attrs[lengthMinusOne];
-    buffer = string.concat(
+    Attribute memory lastAttr = attrs[lengthMinusOne];
+    return string.concat(
       buffer,
       stringifyStringAttribute(lastAttr.name, lastAttr.value)
     );
   }
-
-    buffer = string.concat(buffer, "}");
-
-    return buffer;
   }
 
-  function stringifyStringAttribute(string storage name, string storage value)
+  function stringifyStringAttribute(string memory name, string memory value)
   internal
   pure
   returns (string memory)
@@ -147,33 +145,27 @@ contract EditionMetadataRenderer is EditionMetadataState {
     string.concat('"', name, '":"', LibString.escapeJSON(value), '"');
   }
 
-  function addProperties(uint256 tokenId, string calldata name, string calldata value) public onlyOwner {
-    properties[tokenId].push(new Attribute({
-      name: name, value: value
-    }));
-  }
-
-//  function setProperties(string[] calldata names, uint256 tokenId, string[] calldata values) public override onlyOwner {
-//    uint256 length = names.length;
-//    if (values.length != length) {
-//      revert LengthMismatch();
-//    }
-//
-//    propertyNames = names;
-//    for (uint256 i = 0; i < length;) {
-//      string calldata name = names[i];
-//      string calldata value = values[i];
-//      if (bytes(name).length == 0 || bytes(value).length == 0) {
-//        revert BadAttribute(name, value);
-//      }
-//
-//      emit PropertyUpdated(name, properties[name][tokenId], value);
-//
-//      properties[name][tokenId] = value;
-//
-//    unchecked {
-//      ++i;
-//    }
-//    }
-//  }
+  //  function setProperties(string[] calldata names, uint256 tokenId, string[] calldata values) public override onlyOwner {
+  //    uint256 length = names.length;
+  //    if (values.length != length) {
+  //      revert LengthMismatch();
+  //    }
+  //
+  //    propertyNames = names;
+  //    for (uint256 i = 0; i < length;) {
+  //      string calldata name = names[i];
+  //      string calldata value = values[i];
+  //      if (bytes(name).length == 0 || bytes(value).length == 0) {
+  //        revert BadAttribute(name, value);
+  //      }
+  //
+  //      emit PropertyUpdated(name, properties[name][tokenId], value);
+  //
+  //      properties[name][tokenId] = value;
+  //
+  //    unchecked {
+  //      ++i;
+  //    }
+  //    }
+  //  }
 }
